@@ -10,12 +10,24 @@
  */
 
 
-// @RefundSplitMembers return theDAO ETH back to split members
-// The priority here is to provide a way for theDAO split members to get their ether out of the contract without exposing the process to hijacking.
-// The approach of this contract is to be a single recipient for a proposal, so any recursive attack attempts can't hamper the process.
-// It includes a timelock "cooldown" period in which no funds can be taken out. This period is designed to allow for an appraisal of this contract to check its correctness.
-// It also includes a mechanism for transferring all the ether held by it to a single address if the members vote to do so, e.g. if an error is found with the refund process.
-// Obviously there is a balance here of providing a secondary payment mechanism as a backup rather than a backdoor for a malign actor...
+/* @RefundSplitMembers return theDAO ETH back to split members
+ *
+ * The priority here is to provide a way for theDAO split members to get their ether out of the contract 
+ * without exposing the process to hijacking.
+ *
+ * The approach of this contract is to be a single recipient for a proposal, so any recursive attack 
+ * attempts can't hamper the process.
+ *
+ * It includes a timelock "cooldown" period in which no funds can be taken out. This period is designed
+ * to allow for an appraisal of this contract to check its correctness.
+ *
+ * It also includes a mechanism for transferring all the ether held by it to a single address if the 
+ * members vote to do so, e.g. if an error is found with the refund process.
+ *
+ * Obviously there is a balance here of providing a secondary payment mechanism as a backup rather than 
+ * a backdoor for a malign actor...
+ * 
+ */
 
 contract refundSplitMembers {
 	// number of addresses to be reimbursed, aka members
