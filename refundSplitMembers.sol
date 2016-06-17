@@ -27,6 +27,9 @@
  * Obviously there is a balance here of providing a secondary payment mechanism as a backup rather than 
  * a backdoor for a malign actor...
  * 
+ * TODO: call the parent DAO to get the member details
+ *
+ *
  */
 
 contract refundSplitMembers {
