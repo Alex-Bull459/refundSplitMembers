@@ -42,27 +42,23 @@ contract refundSplitMembers {
 	// number of votes required for a proposal to be successful
 	uint voteThreshold; 
 
-	// list of fallback transfer addresses
-	mapping(int => address) fallbackProposals; 
-
 	// time of refund time-lock release
-	date timelockPeriod; 
+	uint timelockPeriod; 
 
 	/// Create a new refund contract with hardcoded members for simplicity
 	function refundSplitMembers() 
 	{
 		members["0x..."].amount = ...;
-		members["0x..."].amount = ...;
 		...
 
 		voteThreshold = ...;
-		timelockPeriod = now + 1 week;
+		timelockPeriod = now + 7 days;
 	}
 
 	/// The methods of this contract are members only
 	modifier membersOnly
 	{
-		if ( amounts(msg.sender) == 0 ) throw;
+		if ( members[msg.sender].amount == 0 ) throw;
 		_
 	}
 
@@ -71,8 +67,8 @@ contract refundSplitMembers {
 	{
 		if ( now < timelockPeriod ) throw; // only after time period
 
-		msg.sender.send(members(msg.sender).amount); // send funds owed
-		members(msg.sender).amount = 0; // remove from member list
+		msg.sender.send(members[msg.sender].amount); // send funds owed
+		members[msg.sender].amount = 0; // remove from member list
 	}
 
 	/// Put forward a single address that can receive all the funds of this contract if enough members vote for it. DANGER!
@@ -81,20 +77,20 @@ contract refundSplitMembers {
 		fallbackProposals.push(FallbackProposal({
 			addr: fallback,
 			voteCount: 0
-		});
+		}));
 	}
 
 	/// A member can vote for a fallback address, but only one vote max per address
-	function vote(int proposalNumber) membersOnly
+	function vote(uint proposalNumber) membersOnly
 	{
-		if ( membes(msg.sender).votes[proposalNumber] > 0 ) throw;
+		if ( members[msg.sender].votes[proposalNumber] == true ) throw;
 
-		membes(msg.sender).votes[proposalNumber] = 1;
+		members[msg.sender].votes[proposalNumber] = true;
 		fallbackProposals[proposalNumber].voteCount += 1;
 	}
 
 	/// If a fallback address has enough vote, kill this contract and transfer all funds to that address
-	function fallback(int proposalNumber) membersOnly
+	function fallback(uint proposalNumber) membersOnly
 	{
 		if ( fallbackProposals[proposalNumber].voteCount <= voteThreshold ) throw;
 
@@ -102,5 +98,3 @@ contract refundSplitMembers {
 	}
 
 }
-
-
