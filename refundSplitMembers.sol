@@ -33,8 +33,8 @@
  */
 
 contract refundSplitMembers {
-	// number of addresses to be reimbursed, aka members
-	int numberMembers = 45; 
+	// Charity address to receive any left-over Ether that somehow ends up in this contract
+	address charity;
 
 	struct MemberDetails
 	{
@@ -44,6 +44,9 @@ contract refundSplitMembers {
 
 	// list of addresses to be reimbursed, aka members
 	mapping(address => MemberDetails) members; 
+
+	// tracks number of members for voting
+	uint numMembers;
 
 	struct FallbackProposal
 	{
@@ -57,6 +60,9 @@ contract refundSplitMembers {
 	// number of votes required for a proposal to be successful
 	uint voteThreshold; 
 
+	// number of members below which the decision must be unanimous
+	uint minVoteThreshold;
+
 	// time of refund time-lock release
 	uint timelockPeriod; 
 
@@ -66,8 +72,22 @@ contract refundSplitMembers {
 		members["0x..."].amount = ...;
 		...
 
-		voteThreshold = ...;
 		timelockPeriod = now + 7 days;
+
+		numMembers = ...;
+
+		/* With N - 1 votes required, two people are needed to block a "recovery"
+		 * This means that if a member is trying to steal all the funds, you just
+		 * need one friend member to stop it. It also means that a single stalker
+		 * can't block a fallback option.
+		 * Of course, by having a "fallback" option at all, the danger of everything
+		 * being stolen exists unavoidably. The alternative is the possibility that
+		 * the funds are forever stuck in this contract, i.e. this contract 'steals'
+		 * it all ;-)
+		 */
+		minVoteThreshold = 3;
+		if ( numMembers > minVoteThreshold ) voteThreshold = numMembers - 1;
+		else voteThreshold = numMembers;
 	}
 
 	/// The methods of this contract are members only
@@ -77,17 +97,27 @@ contract refundSplitMembers {
 		_
 	}
 
+	// This contract shouldn't be receiving any ether
+	modifier noEther
+	{
+		if ( msg.value > 0 ) throw;
+	}
+
 	/// If the timelock period is over, allow a member to extract their portion of the funds
-	function refund() membersOnly 
+	function refund() membersOnly noEther
 	{
 		if ( now < timelockPeriod ) throw; // only after time period
 
 		msg.sender.send(members[msg.sender].amount); // send funds owed
 		members[msg.sender].amount = 0; // remove from member list
+		numMembers -= 1; // decrement the member count
+		
+		if ( numMembers > minVoteThreshold ) voteThreshold -= 1; // decrement the voting threshold
+		else voteThreshold = numMembers; // if too few people left, vote must be unamimous
 	}
 
 	/// Put forward a single address that can receive all the funds of this contract if enough members vote for it. DANGER!
-	function fallbackProposal(address fallback) membersOnly
+	function fallbackProposal(address fallback) membersOnly noEther
 	{
 		fallbackProposals.push(FallbackProposal({
 			addr: fallback,
@@ -96,7 +126,7 @@ contract refundSplitMembers {
 	}
 
 	/// A member can vote for a fallback address, but only one vote max per address
-	function vote(uint proposalNumber) membersOnly
+	function vote(uint proposalNumber) membersOnly noEther
 	{
 		if ( members[msg.sender].votes[proposalNumber] == true ) throw;
 
@@ -104,12 +134,18 @@ contract refundSplitMembers {
 		fallbackProposals[proposalNumber].voteCount += 1;
 	}
 
-	/// If a fallback address has enough vote, kill this contract and transfer all funds to that address
-	function fallback(uint proposalNumber) membersOnly
+	/// If a fallback address has enough votes, kill this contract and transfer all funds to that address. DANGER!
+	function fallback(uint proposalNumber) membersOnly noEther
 	{
 		if ( fallbackProposals[proposalNumber].voteCount <= voteThreshold ) throw;
 
 		suicide(fallbackProposals[proposalNumber].addr);
 	}
 
+	/// If everyone has removed their funds, then the charity can claim whatever is left.
+	// This is a final backup option in case the last remaining member didn't think to claim it all
+	function charityClaim()
+	{
+		suicide(charity);
+	}	
 }
